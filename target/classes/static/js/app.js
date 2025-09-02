@@ -23,6 +23,7 @@
   // Búsqueda global (cliente simple por títulos existentes en la página)
   const globalSearch = document.getElementById("globalSearch");
   if (globalSearch) {
+    // skip if removed from layout
     let resultsBox = null;
     function ensureBox() {
       if (resultsBox) return resultsBox;

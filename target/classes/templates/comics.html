@@ -7,51 +7,92 @@
     <title>Catálogo - ComicOnline</title>
   </head>
   <main>
-    <div
-      class="catalog-toolbar glass anim-fade-up mb-4 p-3 p-lg-4 rounded-4 d-flex flex-wrap align-items-center gap-3"
-    >
-      <div class="d-flex flex-column gap-1">
-        <h1 class="h4 m-0 fw-bold">Catálogo</h1>
-        <div class="small text-dim">Local + Comunidad externa</div>
-      </div>
-      <span
-        class="badge badge-frost"
-        id="countAll"
-        th:text="${#lists.size(comics)} + ' locales'"
-        >0</span
-      >
-      <div class="ms-auto d-flex flex-wrap gap-2 align-items-center">
-        <div class="form-check form-switch m-0" title="Incluir resultados NSFW">
-          <input class="form-check-input" type="checkbox" id="toggleNsfw" />
-          <label class="form-check-label small" for="toggleNsfw">NSFW</label>
+    <!-- Futuristic Catalog Control Bar -->
+    <div class="catalog-neo mb-4">
+      <div class="catalog-neo__header">
+        <div>
+          <h1 class="catalog-title m-0">Catálogo</h1>
+          <div class="catalog-sub text-dim small">
+            Local + Comunidad externa
+          </div>
         </div>
-        <select
-          id="extLang"
-          class="form-select form-select-sm"
-          style="width: auto; min-width: 130px"
+        <span
+          class="badge badge-frost catalog-count"
+          id="countAll"
+          th:text="${#lists.size(comics)} + ' locales'"
+          >0</span
         >
-          <option value="es">Español</option>
-          <option value="en">English</option>
-          <option value="pt-br">Português</option>
-          <option value="fr">Français</option>
-          <option value="it">Italiano</option>
-          <option value="de">Deutsch</option>
-          <option value="ru">Русский</option>
-          <option value="ja">日本語</option>
-          <option value="ko">한국어</option>
-          <option value="zh">中文</option>
-        </select>
-        <div class="d-flex gap-2">
-          <input
-            id="searchExt"
-            class="form-control form-control-sm"
-            style="width: 220px"
-            placeholder="Buscar externo (ENTER)"
-          />
-          <button id="btnSearchExt" class="btn btn-gradient btn-sm">
-            Buscar
+        <div class="catalog-views ms-auto d-none d-md-flex">
+          <button
+            type="button"
+            class="view-btn is-active"
+            data-view="grid"
+            title="Vista grid"
+          >
+            ▦
+          </button>
+          <button
+            type="button"
+            class="view-btn"
+            data-view="list"
+            title="Vista lista"
+          >
+            ☰
           </button>
         </div>
+      </div>
+      <div class="catalog-neo__controls mt-3 gap-3">
+        <div class="search-fx flex-grow-1">
+          <input
+            id="searchExt"
+            class="search-fx-input"
+            placeholder="Buscar externo • ENTER"
+            autocomplete="off"
+          />
+          <div class="search-fx-glow"></div>
+          <button id="btnSearchExt" class="search-fx-btn" title="Buscar">
+            🔍
+          </button>
+        </div>
+        <div class="lang-select-wrap">
+          <select id="extLang" class="lang-select" title="Idioma externo">
+            <option value="es">ES</option>
+            <option value="en">EN</option>
+            <option value="pt-br">PT</option>
+            <option value="fr">FR</option>
+            <option value="it">IT</option>
+            <option value="de">DE</option>
+            <option value="ru">RU</option>
+            <option value="ja">JA</option>
+            <option value="ko">KO</option>
+            <option value="zh">ZH</option>
+          </select>
+        </div>
+        <div class="rating-chips" id="ratingChips" aria-label="Filtro rating">
+          <button class="chip active" data-rating="safe" title="Safe">S</button>
+          <button
+            class="chip active"
+            data-rating="suggestive"
+            title="Suggestive"
+          >
+            SG
+          </button>
+          <button class="chip" data-rating="erotica" title="Erotica">E</button>
+          <button class="chip" data-rating="pornographic" title="Pornographic">
+            P
+          </button>
+        </div>
+        <div
+          class="toggle-nsfw small d-flex align-items-center gap-2"
+          title="Incluir NSFW extremo"
+        >
+          <input class="form-check-input m-0" type="checkbox" id="toggleNsfw" />
+          <label for="toggleNsfw" class="m-0">NSFW</label>
+        </div>
+      </div>
+      <div class="catalog-neo__hint small text-dim mt-2">
+        CONSEJO: Usa ENTER para nueva búsqueda • Click en una tarjeta para vista
+        rápida • Flechas navegan páginas en el lector.
       </div>
     </div>
     <div class="grid-auto-fill anim-fade-up" id="catalogGrid">
@@ -132,37 +173,31 @@
       style="display: none"
     ></div>
     <template id="extCardTpl">
-      <div class="card h-100">
-        <div
-          class="ratio ratio-4x3 d-flex align-items-center justify-content-center bg-dark-subtle overflow-hidden"
-        >
-          <img
-            data-img
-            loading="lazy"
-            decoding="async"
-            style="width: 100%; height: 100%; object-fit: cover"
-          />
-          <span data-ph class="text-dim small">Sin portada</span>
-        </div>
-        <div class="card-body d-flex flex-column">
-          <h5
-            class="card-title mb-1 d-flex align-items-start gap-2"
-            data-title
-          ></h5>
-          <div class="mt-auto d-flex gap-2 flex-wrap">
-            <button class="btn btn-outline-frost btn-sm" data-chapters>
-              Capítulos
-            </button>
-            <button
-              class="btn btn-outline-frost btn-sm"
-              data-fav
-              style="display: none"
-            >
-              ☆ Fav
-            </button>
+      <div class="card h-100 comic-card" data-quick>
+        <div class="cover-wrap ratio ratio-4x3">
+          <div class="cover-skeleton" data-skel></div>
+          <img data-img loading="lazy" decoding="async" class="cover-img" />
+          <div class="cover-overlay">
+            <div class="overlay-actions">
+              <button class="btn-action" data-chapters title="Capítulos">
+                📖
+              </button>
+              <button
+                class="btn-action"
+                data-fav
+                style="display: none"
+                title="Favorito"
+              >
+                ☆
+              </button>
+            </div>
           </div>
-          <div class="small mt-2 text-dim" data-extra></div>
-          <div class="mt-2 d-none" data-pagesBox></div>
+          <span data-ph class="cover-fallback small">Sin portada</span>
+        </div>
+        <div class="card-body d-flex flex-column p-2">
+          <h5 class="card-title small mb-1" data-title></h5>
+          <div class="extra-row small text-dim" data-extra></div>
+          <div class="pages-box mt-2 d-none" data-pagesBox></div>
         </div>
       </div>
     </template>
@@ -516,6 +551,25 @@
                 });
               });
           });
+          // Click en toda la tarjeta abre capítulos (excepto si se pulsa un botón de acción)
+          n.addEventListener("click", (ev) => {
+            if (
+              ev.target.closest("[data-chapters],[data-fav],.btn-action,button")
+            )
+              return; // ya manejado
+            if (pagesBox && !pagesBox.classList.contains("d-none")) {
+              // toggle ocultar
+              pagesBox.classList.add("d-none");
+              n.classList.remove("expanded");
+              return;
+            }
+            chaptersBtn.click();
+            n.classList.add("expanded");
+            // scroll hacia la tarjeta si está fuera de vista (móvil)
+            setTimeout(() => {
+              n.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 50);
+          });
         }
         function addExternal(results) {
           const existing = new Set(
@@ -538,14 +592,23 @@
             else if (rating === "pornographic") ratingClass = "bg-dark";
             titleEl.innerHTML = `<span class="badge badge-frost me-1">EXT</span><span class="badge ${ratingClass} me-1" title="${rating}">${rating
               .substring(0, 1)
-              .toUpperCase()}</span>${m.title || "(sin título)"}`;
+              .toUpperCase()}</span><span class="title-text">${
+              m.title || "(sin título)"
+            }</span>`;
             const img = frag.querySelector("[data-img]");
             const ph = frag.querySelector("[data-ph]");
+            const skel = frag.querySelector("[data-skel]");
             if (m.coverUrl) {
               // Usar la mecánica simple del homepage: asignar src directamente
               img.src = m.coverUrl;
-              img.style.display = "block";
-              ph && ph.remove();
+              img.addEventListener("load", () => {
+                skel?.remove();
+                img.classList.add("is-loaded");
+                ph && ph.remove();
+              });
+              img.addEventListener("error", () => {
+                skel?.remove();
+              });
             }
             const cardEl = frag.firstElementChild; // .card
             cardEl.dataset.mid = m.id;
@@ -705,6 +768,33 @@
         });
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") search(1);
+        });
+        // View toggle
+        document.querySelectorAll(".view-btn").forEach((v) => {
+          v.addEventListener("click", () => {
+            document
+              .querySelectorAll(".view-btn")
+              .forEach((b) => b.classList.remove("is-active"));
+            v.classList.add("is-active");
+            grid.classList.toggle("list-view", v.dataset.view === "list");
+          });
+        });
+        // Rating chips influence NSFW toggle automatically
+        const chipWrap = document.getElementById("ratingChips");
+        chipWrap.querySelectorAll(".chip").forEach((ch) => {
+          ch.addEventListener("click", () => {
+            ch.classList.toggle("active");
+            // if any of erotica/pornographic active -> toggle nsfw
+            const anyNSFW = Array.from(
+              chipWrap.querySelectorAll(".chip.active")
+            ).some((c) =>
+              ["erotica", "pornographic", "suggestive"].includes(
+                c.dataset.rating
+              )
+            );
+            document.getElementById("toggleNsfw").checked = anyNSFW;
+            search(1);
+          });
         });
         // carga inicial (popular simple)
         if (auth) loadExternalFavorites();
