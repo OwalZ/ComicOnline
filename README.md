@@ -146,7 +146,7 @@ Se recomienda cambiar la contraseña en entornos públicos.
 
 ## Contribuciones
 
-Issues y PRs son bienvenidos. Por favor describe claramente el cambio propuesto.
+Issues y PRs son bienvenidos. 
 
 ## Autor
 
