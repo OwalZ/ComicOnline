@@ -1,0 +1,105 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Inicio - ComicOnline</title>
+  </head>
+  <main>
+    <section class="hero anim-fade-up mb-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+          <h1 class="display-5 fw-bold mb-3">
+            Tu universo de <span class="section-title">cómics y manga</span>
+            en un solo lugar
+          </h1>
+          <p class="lead text-dim mb-4">
+            Descubre nuevas historias, sigue tus series favoritas y disfruta de
+            un lector rápido e inmersivo con filtros por idioma y contenido.
+          </p>
+          <div class="d-flex flex-wrap gap-3">
+            <a class="btn btn-gradient btn-lg px-4" th:href="@{/comics}"
+              >Explorar ahora</a
+            >
+            <a class="btn btn-outline-frost btn-lg px-4" th:href="@{/register}"
+              >Crear cuenta</a
+            >
+          </div>
+        </div>
+        <div class="col-lg-5 d-none d-lg-block">
+          <div
+            class="glass p-4 rounded-4 h-100 d-flex flex-column justify-content-center"
+            style="min-height: 260px"
+          >
+            <h3 class="h5 text-dim mb-3">Qué puedes hacer</h3>
+            <ul class="list-unstyled small m-0 text-dim">
+              <li class="mb-2">
+                • Guardar favoritos y retomarlos cuando quieras
+              </li>
+              <li class="mb-2">• Leer capítulos con navegación fluida</li>
+              <li class="mb-2">• Elegir idioma y filtrar contenido sensible</li>
+              <li>• Explorar series destacadas de la comunidad</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-title h4 mb-4 anim-fade-up">Comics Destacados</h2>
+    <div class="grid-auto-fill anim-fade-up">
+      <div th:each="c : ${comics}">
+        <div class="card h-100">
+          <div
+            class="ratio ratio-4x3 d-flex align-items-center justify-content-center text-dim fw-semibold"
+          >
+            Portada
+          </div>
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-1" th:text="${c.title}"></h5>
+            <p class="small text-dim mb-3" th:text="${c.author}"></p>
+            <a
+              th:href="@{'/comics/' + ${c.id}}"
+              class="mt-auto btn btn-outline-frost btn-sm stretched-link"
+              >Ver Detalle</a
+            >
+          </div>
+        </div>
+      </div>
+      <div
+        th:if="${#lists.isEmpty(comics) and extFeatured != null}"
+        th:each="e : ${extFeatured}"
+      >
+        <div class="card h-100" data-ext="1">
+          <div
+            class="ratio ratio-4x3 bg-dark-subtle d-flex align-items-center justify-content-center overflow-hidden"
+          >
+            <img
+              th:if="${e.coverUrl}"
+              th:src="${e.coverUrl}"
+              style="width: 100%; height: 100%; object-fit: cover"
+            />
+            <div th:if="${e.coverUrl == null}" class="text-dim small">
+              Sin portada
+            </div>
+          </div>
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-1">
+              <span class="badge badge-frost me-1">EXT</span
+              ><span th:text="${e.title}"></span>
+            </h5>
+            <p class="small text-dim mb-3">MangaDex</p>
+            <button class="btn btn-outline-frost btn-sm mt-auto" disabled>
+              Ver
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        th:if="${#lists.isEmpty(comics) and (extFeatured == null or #lists.isEmpty(extFeatured))}"
+        class="text-dim"
+      >
+        No hay cómics disponibles.
+      </div>
+    </div>
+  </main>
+</html>

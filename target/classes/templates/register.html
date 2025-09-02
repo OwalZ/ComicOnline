@@ -1,0 +1,51 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Registro - ComicOnline</title>
+  </head>
+  <main>
+    <div class="row justify-content-center anim-fade-up">
+      <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
+        <div class="card p-2">
+          <div class="card-body">
+            <h1 class="section-title h3 text-center mb-4">Registro</h1>
+            <div
+              th:if="${error}"
+              class="alert alert-danger py-2"
+              th:text="${error}"
+            ></div>
+            <form th:action="@{/register}" method="post" class="vstack gap-3">
+              <div>
+                <label class="form-label small text-dim">Usuario</label>
+                <input
+                  class="form-control"
+                  type="text"
+                  name="username"
+                  required
+                />
+              </div>
+              <div>
+                <label class="form-label small text-dim">Contraseña</label>
+                <input
+                  class="form-control"
+                  type="password"
+                  name="password"
+                  required
+                />
+              </div>
+              <button class="btn btn-gradient w-100 mt-2" type="submit">
+                Crear cuenta
+              </button>
+            </form>
+            <p class="mt-4 small text-center text-dim mb-0">
+              ¿Ya tienes cuenta?
+              <a class="text-white" th:href="@{/login}">Login</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</html>

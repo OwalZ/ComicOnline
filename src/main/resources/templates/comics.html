@@ -1,0 +1,582 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Catálogo - ComicOnline</title>
+  </head>
+  <main>
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-4 anim-fade-up">
+      <h1 class="section-title h3 m-0">Catálogo de Cómics</h1>
+      <span
+        class="badge badge-frost"
+        id="countAll"
+        th:text="${#lists.size(comics)} + ' locales'"
+        >0</span
+      >
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <div class="form-check form-switch m-0">
+          <input class="form-check-input" type="checkbox" id="toggleNsfw" />
+          <label
+            class="form-check-label small"
+            for="toggleNsfw"
+            title="Incluir resultados NSFW"
+            >NSFW</label
+          >
+        </div>
+        <select
+          id="extLang"
+          class="form-select form-select-sm"
+          style="width: auto; min-width: 120px"
+        >
+          <option value="es">Español</option>
+          <option value="en">English</option>
+          <option value="pt-br">Português</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="de">Deutsch</option>
+          <option value="ru">Русский</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="zh">中文</option>
+        </select>
+        <input
+          id="searchExt"
+          class="form-control form-control-sm"
+          style="width: 200px"
+          placeholder="Buscar comunidad (ENTER)"
+        />
+        <button id="btnSearchExt" class="btn btn-outline-frost btn-sm">
+          Buscar
+        </button>
+      </div>
+    </div>
+    <div class="grid-auto-fill anim-fade-up" id="catalogGrid">
+      <div th:each="c : ${comics}">
+        <div class="card h-100">
+          <div
+            class="ratio ratio-4x3 d-flex align-items-center justify-content-center text-dim fw-semibold"
+          >
+            Portada
+          </div>
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-1" th:text="${c.title}"></h5>
+            <p class="small text-dim mb-3" th:text="${c.author}"></p>
+            <div class="mt-auto d-flex gap-2">
+              <a
+                th:href="@{'/comics/' + ${c.id}}"
+                class="btn btn-outline-frost btn-sm"
+                >Ver</a
+              >
+              <a
+                th:href="@{'/comics/' + ${c.id} + '/read'}"
+                class="btn btn-gradient btn-sm"
+                >Leer</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <div th:if="${#lists.isEmpty(comics)}" id="noComicsMsg" class="text-dim">
+        No hay cómics.
+      </div>
+    </div>
+    <!-- Paginación resultados externos -->
+    <div id="extPager" class="mt-4 d-flex flex-wrap gap-2"></div>
+    <div
+      id="authFlag"
+      sec:authorize="isAuthenticated()"
+      style="display: none"
+    ></div>
+    <template id="extCardTpl">
+      <div class="card h-100">
+        <div
+          class="ratio ratio-4x3 d-flex align-items-center justify-content-center bg-dark-subtle overflow-hidden"
+        >
+          <img
+            data-img
+            style="width: 100%; height: 100%; object-fit: cover; display: none"
+          />
+          <span data-ph class="text-dim small">Sin portada</span>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <h5
+            class="card-title mb-1 d-flex align-items-start gap-2"
+            data-title
+          ></h5>
+          <div class="mt-auto d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-frost btn-sm" data-chapters>
+              Capítulos
+            </button>
+            <button
+              class="btn btn-outline-frost btn-sm"
+              data-fav
+              style="display: none"
+            >
+              ☆ Fav
+            </button>
+          </div>
+          <div class="small mt-2 text-dim" data-extra></div>
+          <div class="mt-2 d-none" data-pagesBox></div>
+        </div>
+      </div>
+    </template>
+    <script>
+      (function () {
+        const input = document.getElementById("searchExt");
+        const langSelect = document.getElementById("extLang");
+        const btn = document.getElementById("btnSearchExt");
+        const grid = document.getElementById("catalogGrid");
+        const countAll = document.getElementById("countAll");
+        const tpl = document.getElementById("extCardTpl").content;
+        const localCount =
+          grid.querySelectorAll("[data-local] , [th\\:each]").length ||
+          document.querySelectorAll("[th\\:each] .card").length;
+        const noComicsMsg = document.getElementById("noComicsMsg");
+        function updateCount() {
+          const extCount = grid.querySelectorAll(
+            "[data-ext] .card, .card[data-ext]"
+          ).length;
+          countAll.textContent = `${
+            localCount + extCount
+          } total (${localCount} locales + ${extCount} ext)`;
+          if (noComicsMsg) {
+            if (localCount === 0 && extCount === 0) {
+              noComicsMsg.style.display = "";
+            } else {
+              noComicsMsg.style.display = "none";
+            }
+          }
+        }
+        // --- Overlay lector ---
+        const reader = document.createElement("div");
+        reader.id = "extReader";
+        reader.style.cssText =
+          "position:fixed;inset:0;z-index:2000;display:none;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);";
+        reader.innerHTML = `
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+            <div style="padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+              <button id="erClose" class="btn btn-outline-frost btn-sm">Cerrar</button>
+              <div class="text-dim small" id="erTitle"></div>
+              <div class="ms-auto d-flex align-items-center gap-2">
+                <button id="erPrev" class="btn btn-outline-frost btn-sm">Prev</button>
+                <span id="erPageInfo" class="badge badge-frost"></span>
+                <button id="erNext" class="btn btn-outline-frost btn-sm">Next</button>
+              </div>
+            </div>
+            <div id="erBody" style="flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:1rem;">
+              <div id="erLoading" class="text-dim">Cargando...</div>
+            </div>
+            <div style="padding:.5rem 1rem;display:flex;gap:.5rem;overflow:auto;" id="erThumbs" class="small"></div>
+          </div>`;
+        document.body.appendChild(reader);
+        let pages = [];
+        let pageIndex = 0;
+        let currentMangaId = null;
+        let currentChapterId = null;
+        let currentChapterLabel = "";
+        let currentChapters = [];
+        let currentChapterPos = 0;
+        const btnNext = () => reader.querySelector("#erNext");
+        const erBody = reader.querySelector("#erBody");
+        const erPageInfo = reader.querySelector("#erPageInfo");
+        const erTitle = reader.querySelector("#erTitle");
+        const erThumbs = reader.querySelector("#erThumbs");
+        // --- External favorites support ---
+        const auth = document.getElementById("authFlag") !== null;
+        let extFavorites = new Set();
+        function updateFavBtn(btn, active) {
+          if (!btn) return;
+          btn.style.display = "inline-block";
+          if (active) {
+            btn.classList.remove("btn-outline-frost");
+            btn.classList.add("btn-gradient");
+            btn.textContent = "★ Fav";
+          } else {
+            btn.classList.add("btn-outline-frost");
+            btn.classList.remove("btn-gradient");
+            btn.textContent = "☆ Fav";
+          }
+        }
+        function loadExternalFavorites() {
+          if (!auth) return;
+          fetch("/api/ext/fav")
+            .then((r) => (r.status === 200 ? r.json() : null))
+            .then((data) => {
+              if (!data) return;
+              extFavorites = new Set(
+                (data.favorites || []).map((f) => f.externalId)
+              );
+              grid.querySelectorAll("[data-ext][data-mid]").forEach((c) => {
+                updateFavBtn(
+                  c.querySelector("[data-fav]"),
+                  extFavorites.has(c.dataset.mid)
+                );
+              });
+            });
+        }
+        function toggleFav(cardEl) {
+          if (!auth) return;
+          const id = cardEl.dataset.mid;
+          const btn = cardEl.querySelector("[data-fav]");
+          const payload = {
+            id,
+            title: cardEl.dataset.title || "",
+            coverUrl: cardEl.dataset.cover || "",
+            contentRating: cardEl.dataset.rating || "",
+          };
+          const csrf = document.querySelector('meta[name="_csrf"]')?.content;
+          const csrfHeader = document.querySelector(
+            'meta[name="_csrf_header"]'
+          )?.content;
+          const headers = { "Content-Type": "application/json" };
+          if (csrf && csrfHeader) headers[csrfHeader] = csrf;
+          fetch("/api/ext/fav/toggle", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          })
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.status === "added") extFavorites.add(id);
+              else if (res.status === "removed") extFavorites.delete(id);
+              updateFavBtn(btn, extFavorites.has(id));
+            });
+        }
+        let progressTimer = null;
+        function scheduleProgress() {
+          if (progressTimer) clearTimeout(progressTimer);
+          progressTimer = setTimeout(() => {
+            if (!auth || !currentMangaId || !extFavorites.has(currentMangaId))
+              return;
+            const csrf = document.querySelector('meta[name="_csrf"]')?.content;
+            const csrfHeader = document.querySelector(
+              'meta[name="_csrf_header"]'
+            )?.content;
+            const headers = { "Content-Type": "application/json" };
+            if (csrf && csrfHeader) headers[csrfHeader] = csrf;
+            fetch("/api/ext/fav/progress", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                id: currentMangaId,
+                chapterId: currentChapterId,
+                chapterLabel: currentChapterLabel,
+                pageIndex,
+              }),
+            });
+          }, 800);
+        }
+        function updateNextLabel() {
+          const b = btnNext();
+          if (!b) return;
+          if (!pages.length) {
+            b.textContent = "Next";
+            return;
+          }
+          if (pageIndex === pages.length - 1) {
+            if (currentChapterPos < currentChapters.length - 1)
+              b.textContent = "Next Chapter";
+            else b.textContent = "End";
+          } else b.textContent = "Next";
+        }
+        function renderPage() {
+          if (!pages.length) {
+            erBody.innerHTML = '<div class="text-dim">Sin páginas.</div>';
+            erPageInfo.textContent = "0/0";
+            return;
+          }
+          erBody.innerHTML = "";
+          const img = document.createElement("img");
+          img.src = pages[pageIndex];
+          img.style.maxWidth = "90%";
+          img.style.borderRadius = "12px";
+          img.style.boxShadow = "0 4px 24px -4px rgba(0,0,0,.8)";
+          erBody.appendChild(img);
+          erPageInfo.textContent = pageIndex + 1 + " / " + pages.length;
+          Array.from(erThumbs.children).forEach((th, i) => {
+            th.classList.toggle("active", i === pageIndex);
+            th.style.opacity = i === pageIndex ? "1" : ".6";
+          });
+          updateNextLabel();
+          scheduleProgress();
+        }
+        function openReader(chapterId, label, chaptersArr, chapterIdx) {
+          if (chaptersArr) currentChapters = chaptersArr;
+          if (typeof chapterIdx === "number") currentChapterPos = chapterIdx;
+          currentChapterId = chapterId;
+          reader.style.display = "block";
+          erTitle.textContent = "Capítulo " + label;
+          erBody.innerHTML =
+            '<div id="erLoading" class="text-dim">Cargando páginas...</div>';
+          erThumbs.innerHTML = "";
+          pages = [];
+          pageIndex = 0;
+          currentChapterLabel = label;
+          fetch("/api/ext/chapter/" + chapterId + "/pages")
+            .then((r) => r.json())
+            .then((data) => {
+              pages = data.pages || [];
+              pages.forEach((p, i) => {
+                const th = document.createElement("img");
+                th.src = p;
+                th.style.height = "54px";
+                th.style.cursor = "pointer";
+                th.style.borderRadius = "6px";
+                th.style.opacity = ".6";
+                th.style.transition = ".2s";
+                th.style.boxShadow = "0 0 0 2px rgba(255,255,255,.08)";
+                th.addEventListener("click", () => {
+                  pageIndex = i;
+                  renderPage();
+                });
+                th.addEventListener(
+                  "mouseenter",
+                  () => (th.style.opacity = "1")
+                );
+                th.addEventListener("mouseleave", () => {
+                  if (!th.classList.contains("active")) th.style.opacity = ".6";
+                });
+                erThumbs.appendChild(th);
+              });
+              renderPage();
+            })
+            .catch(() => {
+              erBody.innerHTML =
+                '<div class="text-danger">Error cargando páginas.</div>';
+            });
+        }
+        reader
+          .querySelector("#erClose")
+          .addEventListener("click", () => (reader.style.display = "none"));
+        reader.querySelector("#erPrev").addEventListener("click", () => {
+          if (pageIndex > 0) {
+            pageIndex--;
+            renderPage();
+          }
+        });
+        reader.querySelector("#erNext").addEventListener("click", () => {
+          if (pageIndex < pages.length - 1) {
+            pageIndex++;
+            renderPage();
+            return;
+          }
+          // última página: intentar siguiente capítulo
+          if (currentChapterPos < currentChapters.length - 1) {
+            const next = currentChapters[currentChapterPos + 1];
+            openReader(
+              next.id,
+              next.chapter || "?",
+              null,
+              currentChapterPos + 1
+            );
+          }
+        });
+        document.addEventListener("keydown", (e) => {
+          if (reader.style.display === "block") {
+            if (e.key === "Escape") {
+              reader.style.display = "none";
+            } else if (e.key === "ArrowLeft") {
+              if (pageIndex > 0) {
+                pageIndex--;
+                renderPage();
+              }
+            } else if (e.key === "ArrowRight") {
+              if (pageIndex < pages.length - 1) {
+                pageIndex++;
+                renderPage();
+              }
+            }
+          }
+        });
+
+        function enrichCard(n) {
+          const chaptersBtn = n.querySelector("[data-chapters]");
+          const extra = n.querySelector("[data-extra]");
+          const pagesBox = n.querySelector("[data-pagesBox]");
+          const favBtn = n.querySelector("[data-fav]");
+          if (favBtn && auth) {
+            updateFavBtn(favBtn, extFavorites.has(n.dataset.mid));
+            favBtn.addEventListener("click", () => toggleFav(n));
+          }
+          chaptersBtn.addEventListener("click", () => {
+            extra.textContent = "Cargando capítulos...";
+            const id = n.dataset.mid;
+            currentMangaId = id;
+            const lang = langSelect.value;
+            fetch(
+              `/api/ext/manga/${id}/chapters?lang=${encodeURIComponent(lang)}`
+            )
+              .then((r) => r.json())
+              .then((ch) => {
+                const list = ch.chapters || [];
+                extra.textContent = list.length + " capítulos";
+                pagesBox.classList.remove("d-none");
+                pagesBox.innerHTML = "";
+                currentChapters = list; // guardar lista completa
+                list.slice(0, 12).forEach((c, idx) => {
+                  const b = document.createElement("button");
+                  b.className = "btn btn-outline-frost btn-sm m-1";
+                  b.textContent = "Cap " + (c.chapter || "?");
+                  b.addEventListener("click", () =>
+                    openReader(c.id, c.chapter || "?", list, idx)
+                  );
+                  pagesBox.appendChild(b);
+                });
+              });
+          });
+        }
+        function addExternal(results) {
+          const existing = new Set(
+            Array.from(grid.querySelectorAll("[data-mid]")).map(
+              (e) => e.dataset.mid
+            )
+          );
+          results.forEach((m) => {
+            if (existing.has(m.id)) return; // evita duplicados si se repite búsqueda
+            const frag = document.importNode(tpl, true);
+            const card = frag.querySelector(".card");
+            card.dataset.ext = "1";
+            const titleEl = frag.querySelector("[data-title]");
+            const rating = (m.contentRating || "").toLowerCase();
+            let ratingClass = "bg-secondary";
+            if (rating === "safe") ratingClass = "bg-success";
+            else if (rating === "suggestive")
+              ratingClass = "bg-warning text-dark";
+            else if (rating === "erotica") ratingClass = "bg-danger";
+            else if (rating === "pornographic") ratingClass = "bg-dark";
+            titleEl.innerHTML = `<span class="badge badge-frost me-1">EXT</span><span class="badge ${ratingClass} me-1" title="${rating}">${rating
+              .substring(0, 1)
+              .toUpperCase()}</span>${m.title || "(sin título)"}`;
+            const img = frag.querySelector("[data-img]");
+            const ph = frag.querySelector("[data-ph]");
+            if (m.coverUrl) {
+              img.src = m.coverUrl;
+              img.onload = () => {
+                img.style.display = "block";
+                ph && ph.remove();
+              };
+              img.onerror = () => {
+                img.remove();
+              };
+            }
+            const cardEl = frag.firstElementChild; // .card
+            cardEl.dataset.mid = m.id;
+            cardEl.dataset.title = m.title || "";
+            cardEl.dataset.cover = m.coverUrl || "";
+            cardEl.dataset.rating = m.contentRating || "";
+            enrichCard(cardEl);
+            grid.appendChild(frag);
+          });
+          updateCount();
+        }
+        const pagerEl = document.getElementById("extPager");
+        let currentPage = 1;
+        let lastQuery = "";
+        let lastLang = "";
+        let lastNsfw = false;
+        let lastHasMore = false;
+        function clearExternal() {
+          grid.querySelectorAll("[data-ext]").forEach((e) => e.remove());
+          if (noComicsMsg && localCount === 0) noComicsMsg.style.display = "";
+        }
+        function renderPager(hasMore) {
+          if (!pagerEl) return;
+          pagerEl.innerHTML = "";
+          const makeBtn = (label, active, disabled, handler) => {
+            const b = document.createElement("button");
+            b.className = `btn btn-sm ${
+              active ? "btn-gradient" : "btn-outline-frost"
+            }`;
+            b.textContent = label;
+            if (disabled) b.disabled = true;
+            if (handler) b.addEventListener("click", handler);
+            pagerEl.appendChild(b);
+            return b;
+          };
+          // Prev
+          makeBtn("«", false, currentPage === 1, () => search(currentPage - 1));
+          // Page numbers: show 1..currentPage and maybe next if hasMore
+          const start = 1;
+          for (let p = start; p <= currentPage; p++) {
+            makeBtn(p, p === currentPage, false, () => {
+              if (p !== currentPage) search(p);
+            });
+          }
+          if (hasMore) {
+            makeBtn(currentPage + 1, false, false, () =>
+              search(currentPage + 1)
+            );
+          }
+          // Next
+          makeBtn("»", false, !hasMore && currentPage !== 1 && !hasMore, () => {
+            if (hasMore) search(currentPage + 1);
+          });
+          // Info small
+          const info = document.createElement("span");
+          info.className = "small text-dim align-self-center ms-2";
+          info.textContent = `Página ${currentPage}${
+            hasMore ? " (hay más)" : ""
+          }`;
+          pagerEl.appendChild(info);
+        }
+        function search(page = 1) {
+          const q = input.value.trim();
+          const nsfw = document.getElementById("toggleNsfw").checked;
+          const lang = langSelect.value;
+          const newSearch =
+            q !== lastQuery || nsfw !== lastNsfw || lang !== lastLang;
+          if (newSearch) {
+            currentPage = 1; // reset
+          } else {
+            currentPage = page;
+          }
+          lastQuery = q;
+          lastNsfw = nsfw;
+          lastLang = lang;
+          localStorage.setItem("extLang", lang);
+          clearExternal();
+          pagerEl.innerHTML = '<span class="text-dim small">Cargando...</span>';
+          fetch(
+            `/api/ext/search?q=${encodeURIComponent(
+              q
+            )}&nsfw=${nsfw}&lang=${encodeURIComponent(
+              lang
+            )}&page=${currentPage}`
+          )
+            .then((r) => r.json())
+            .then((data) => {
+              addExternal(data.results || []);
+              lastHasMore = !!data.hasMore;
+              renderPager(lastHasMore);
+            })
+            .catch(() => {
+              pagerEl.innerHTML =
+                '<span class="text-danger small">Error</span>';
+            });
+        }
+        // Restaurar idioma guardado
+        (function () {
+          const saved = localStorage.getItem("extLang");
+          if (saved && langSelect.querySelector(`option[value="${saved}"]`)) {
+            langSelect.value = saved;
+          }
+        })();
+        document
+          .getElementById("toggleNsfw")
+          .addEventListener("change", () => search(1));
+        langSelect.addEventListener("change", () => search(1));
+        btn.addEventListener("click", () => {
+          search(1);
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") search(1);
+        });
+        // carga inicial (popular simple)
+        if (auth) loadExternalFavorites();
+        search(1);
+      })();
+    </script>
+  </main>
+</html>

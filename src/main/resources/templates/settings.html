@@ -1,0 +1,194 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Settings - ComicOnline</title>
+  </head>
+  <main>
+    <h1 class="section-title h3 mb-4 anim-fade-up">Personalización</h1>
+    <div class="row g-4 anim-fade-up">
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-dim mb-3">Tema de color</h2>
+            <p class="small text-dim">
+              Selecciona la paleta preferida. Se guarda localmente.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mb-3" id="themeOptions">
+              <button
+                type="button"
+                class="theme-dot"
+                data-theme="aurora"
+                aria-label="Aurora"
+              ></button>
+              <button
+                type="button"
+                class="theme-dot"
+                data-theme="dusk"
+                aria-label="Dusk"
+              ></button>
+              <button
+                type="button"
+                class="theme-dot"
+                data-theme="synth"
+                aria-label="Synth"
+              ></button>
+            </div>
+            <div class="small text-dim">
+              Actual: <span id="currentTheme">aurora</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-dim mb-3">Avatar</h2>
+            <p class="small text-dim">
+              Sube una imagen cuadrada (PNG/JPG/WEBP).
+            </p>
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div
+                class="rounded-circle overflow-hidden position-relative"
+                style="
+                  width: 72px;
+                  height: 72px;
+                  background: rgba(255, 255, 255, 0.08);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                <img
+                  th:if="${userEntity?.avatarUrl != null}"
+                  th:src="${userEntity.avatarUrl + '?v=' + #dates.createNow().time}"
+                  data-avatar
+                  alt="avatar"
+                  style="width: 100%; height: 100%; object-fit: cover"
+                />
+                <span
+                  th:if="${userEntity?.avatarUrl == null}"
+                  class="fw-semibold"
+                  data-avatar-fallback
+                  th:text="${#authentication.principal?.username?.substring(0,1).toUpperCase()}"
+                  >U</span
+                >
+                <canvas
+                  id="avatarPreview"
+                  style="
+                    position: absolute;
+                    inset: 0;
+                    display: none;
+                    border-radius: 50%;
+                  "
+                ></canvas>
+              </div>
+              <form
+                th:action="@{/settings/avatar}"
+                method="post"
+                enctype="multipart/form-data"
+                class="d-flex flex-column gap-2"
+                id="avatarForm"
+              >
+                <input
+                  id="avatarInput"
+                  class="form-control form-control-sm"
+                  type="file"
+                  name="avatar"
+                  accept="image/png,image/jpg"
+                  required
+                />
+                <div class="d-flex gap-2 flex-wrap">
+                  <button class="btn btn-gradient btn-sm" type="submit">
+                    Subir
+                  </button>
+                  <form
+                    th:if="${userEntity?.avatarUrl != null}"
+                    th:action="@{/settings/avatar/delete}"
+                    method="post"
+                    onsubmit="return confirm('¿Eliminar avatar?');"
+                  >
+                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                      Eliminar
+                    </button>
+                  </form>
+                  <a class="btn btn-outline-frost btn-sm" th:href="@{/profile}"
+                    >Perfil</a
+                  >
+                </div>
+              </form>
+            </div>
+            <div
+              th:if="${param.err}"
+              class="alert alert-warning py-1 small mb-2"
+            >
+              Error: <span th:text="${param.err}"></span>
+            </div>
+            <div
+              th:if="${param.ok}"
+              class="alert alert-success py-1 small mb-0"
+            >
+              <span th:switch="${param.ok}">
+                <span th:case="'1'">Avatar actualizado.</span>
+                <span th:case="'deleted'">Avatar eliminado.</span>
+                <span th:case="*">Listo.</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const KEY = "comicTheme";
+        function apply(theme) {
+          document.body.classList.remove(
+            "theme-aurora",
+            "theme-dusk",
+            "theme-synth"
+          );
+          document.body.classList.add("theme-" + theme);
+          localStorage.setItem(KEY, theme);
+          document.getElementById("currentTheme").textContent = theme;
+          fetch("/settings/theme", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "theme=" + theme,
+          }).catch(() => {});
+        }
+        const saved = localStorage.getItem(KEY) || "aurora";
+        apply(saved);
+        document
+          .querySelectorAll("#themeOptions .theme-dot")
+          .forEach((b) =>
+            b.addEventListener("click", () => apply(b.dataset.theme))
+          );
+        // Preview del avatar antes de subir (recorta al centro)
+        const input = document.getElementById("avatarInput");
+        const canvas = document.getElementById("avatarPreview");
+        if (input && canvas) {
+          const ctx = canvas.getContext("2d");
+          input.addEventListener("change", () => {
+            const file = input.files?.[0];
+            if (!file || !file.type.startsWith("image/")) return;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+              const size = Math.min(img.width, img.height);
+              canvas.width = canvas.height = 72;
+              const sx = (img.width - size) / 2;
+              const sy = (img.height - size) / 2;
+              ctx.clearRect(0, 0, 72, 72);
+              ctx.drawImage(img, sx, sy, size, size, 0, 0, 72, 72);
+              canvas.style.display = "block";
+              URL.revokeObjectURL(url);
+            };
+            img.onerror = () => URL.revokeObjectURL(url);
+            img.src = url;
+          });
+        }
+      })();
+    </script>
+  </main>
+</html>

@@ -1,0 +1,151 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Admin - ComicOnline</title>
+  </head>
+  <main>
+    <div
+      class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 anim-fade-up"
+    >
+      <h1 class="section-title h3 m-0">Administración de Cómics</h1>
+      <a class="btn btn-outline-frost btn-sm" th:href="@{/}">Inicio</a>
+    </div>
+    <div class="row g-4 anim-fade-up">
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-dim mb-3">Crear / Editar</h2>
+            <form
+              th:action="@{/admin/comics}"
+              th:object="${comic}"
+              method="post"
+              class="vstack gap-2"
+            >
+              <input
+                class="form-control"
+                th:field="*{title}"
+                placeholder="Título"
+                required
+              />
+              <input
+                class="form-control"
+                th:field="*{author}"
+                placeholder="Autor"
+              />
+              <input
+                class="form-control"
+                th:field="*{coverUrl}"
+                placeholder="Cover URL"
+              />
+              <textarea
+                class="form-control"
+                th:field="*{description}"
+                placeholder="Descripción"
+                rows="3"
+              ></textarea>
+              <button type="submit" class="btn btn-gradient w-100 mt-2">
+                Guardar
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h2 class="h6 text-dim m-0">Listado</h2>
+              <div class="d-flex gap-2 align-items-center">
+                <input id="admSearchExt" class="form-control form-control-sm" style="width:180px" placeholder="Buscar MangaDex" />
+                <button id="admBtnExt" type="button" class="btn btn-outline-frost btn-sm">Buscar EXT</button>
+              </div>
+            </div>
+            <div class="table-responsive small flex-grow-1">
+              <table class="table align-middle table-borderless mb-0">
+                <thead>
+                <tr class="text-dim">
+                  <th><input type="checkbox" id="chkAll" /></th>
+                  <th>ID</th>
+                  <th>Título</th>
+                  <th>Autor</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${comics}" class="border-top">
+                  <td><input type="checkbox" name="ids" th:value="${c.id}" form="bulkDeleteForm" /></td>
+                  <td th:text="${c.id}"></td>
+                  <td th:text="${c.title}"></td>
+                  <td th:text="${c.author}"></td>
+                  <td class="text-end">
+                    <form th:action="@{'/admin/comics/' + ${c.id} + '/delete'}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-outline-frost btn-sm" onclick="return confirm('Eliminar?')">Eliminar</button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(comics)}" id="noLocalRow">
+                  <td colspan="5" class="text-center text-dim">Sin cómics.</td>
+                </tr>
+                </tbody>
+                <tbody id="extBody"></tbody>
+              </table>
+            </div>
+            <form id="bulkDeleteForm" th:action="@{/admin/comics/bulk-delete}" method="post" class="mt-3 d-flex gap-2">
+              <button type="submit" class="btn btn-outline-frost btn-sm" onclick="return confirm('Eliminar seleccionados?')">Eliminar seleccionados</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    (function(){
+      const all = document.getElementById('chkAll');
+      if(all){
+        all.addEventListener('change', ()=>{
+          document.querySelectorAll('input[name="ids"]').forEach(ch=> ch.checked = all.checked);
+        });
+      }
+    })();
+    (function(){
+      const btn = document.getElementById('admBtnExt');
+      const input = document.getElementById('admSearchExt');
+      const tbody = document.getElementById('extBody');
+      const noLocal = document.getElementById('noLocalRow');
+      if(!btn) return;
+      function rowFor(m){
+        const tr = document.createElement('tr');
+        tr.className='border-top';
+        tr.innerHTML = `<td></td><td>${m.id}</td><td>${m.title || '(sin título)'}</td><td>EXT</td><td class=\"text-end\"><span class=\"badge bg-secondary\">solo lectura</span></td>`;
+        return tr;
+      }
+  function search(auto){
+    const qRaw = input.value.trim();
+    const q = qRaw === '' ? (auto ? 'a' : '') : qRaw;
+    if(noLocal) noLocal.style.display='none'; // ocultar inmediatamente si vamos a traer externos
+    tbody.innerHTML = '<tr><td colspan="5" class="text-dim">Buscando...</td></tr>';
+        fetch(`/api/ext/search?q=${encodeURIComponent(q)}`)
+          .then(r=>r.json())
+          .then(data=>{
+            const results = data.results || [];
+            tbody.innerHTML='';
+            if(results.length===0){
+      if(noLocal) noLocal.style.display=''; // si no hay locales ni externos mostrar
+      tbody.innerHTML = '<tr><td colspan="5" class="text-dim">Sin resultados externos.</td></tr>';
+            } else {
+              results.slice(0,25).forEach(m=> tbody.appendChild(rowFor(m)));
+            }
+          })
+          .catch(()=>{
+            tbody.innerHTML = '<tr><td colspan="5" class="text-danger">Error buscando externos.</td></tr>';
+          });
+      }
+      btn.addEventListener('click', ()=>search(false));
+      input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ search(false); }});
+      search(true);
+    })();
+  </script>
+</html>
+</html>

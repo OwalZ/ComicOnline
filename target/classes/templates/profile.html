@@ -1,0 +1,88 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Perfil - ComicOnline</title>
+  </head>
+  <main>
+    <div class="anim-fade-up mb-4 d-flex flex-wrap align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle p-1" style="background: var(--c-grad-1)">
+          <div
+            class="rounded-circle overflow-hidden d-flex align-items-center justify-content-center"
+            style="
+              width: 72px;
+              height: 72px;
+              background: rgba(255, 255, 255, 0.08);
+              font-size: 1.6rem;
+              font-weight: 600;
+            "
+          >
+            <img
+              th:if="${userEntity?.avatarUrl != null}"
+              th:src="${userEntity.avatarUrl + '?v=' + #dates.createNow().time}"
+              data-avatar
+              alt="avatar"
+              style="width: 100%; height: 100%; object-fit: cover"
+            />
+            <span
+              th:if="${userEntity?.avatarUrl == null}"
+              data-avatar-fallback
+              th:text="${#strings.substring(userEntity?.username,0,1)?.toUpperCase()}"
+              >U</span
+            >
+          </div>
+        </div>
+        <div>
+          <h1 class="section-title h3 mb-1" th:text="${userEntity?.username}">
+            Usuario
+          </h1>
+          <p class="text-dim small mb-0">Mi perfil</p>
+        </div>
+      </div>
+      <div class="ms-auto d-flex gap-2">
+        <a class="btn btn-outline-frost btn-sm" th:href="@{/settings}"
+          >Settings</a
+        >
+      </div>
+    </div>
+    <div class="row g-4 anim-fade-up">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-dim mb-3">Información</h2>
+            <ul class="list-unstyled small mb-0 text-dim">
+              <li>
+                <strong>Usuario:</strong>
+                <span th:text="${userEntity?.username}">usuario</span>
+              </li>
+              <li class="mt-2">
+                <strong>Roles:</strong>
+                <span th:text="${userEntity?.roles}">[ROLE_USER]</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h6 text-dim mb-3">Acciones rápidas</h2>
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-outline-frost btn-sm" th:href="@{/favorites}"
+                >Favoritos</a
+              >
+              <a class="btn btn-outline-frost btn-sm" th:href="@{/comics}"
+                >Catálogo</a
+              >
+              <a class="btn btn-outline-frost btn-sm" th:href="@{/settings}"
+                >Personalización</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</html>

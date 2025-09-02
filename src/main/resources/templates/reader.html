@@ -1,0 +1,88 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title>Lectura - ComicOnline</title>
+  </head>
+  <main>
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+      <a
+        class="btn btn-outline-frost btn-sm"
+        th:href="@{'/comics/' + ${comicId}}"
+        >← Detalle</a
+      >
+      <div class="d-flex gap-2">
+        <button id="prevBtn" class="btn btn-outline-frost btn-sm" disabled>
+          Prev
+        </button>
+        <button id="nextBtn" class="btn btn-outline-frost btn-sm" disabled>
+          Next
+        </button>
+      </div>
+    </div>
+    <div
+      id="readerContainer"
+      class="card p-3 mb-3 d-flex align-items-center justify-content-center"
+      style="min-height: 60vh"
+    >
+      <div id="loading" class="text-dim small">Cargando páginas...</div>
+      <img id="pageImg" alt="page" style="max-width: 100%; display: none" />
+    </div>
+    <div class="small text-dim" id="pageIndicator"></div>
+    <script th:inline="javascript">
+      const comicId = /*[[${comicId}]]*/ 0;
+      let pages = [];
+      let index = 0;
+      const img = document.getElementById("pageImg");
+      const loading = document.getElementById("loading");
+      const indicator = document.getElementById("pageIndicator");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      function updateNav() {
+        prevBtn.disabled = index <= 0;
+        nextBtn.disabled = index >= pages.length - 1;
+        indicator.textContent = pages.length
+          ? `Página ${index + 1} / ${pages.length}`
+          : "";
+      }
+      function show(idx) {
+        if (!pages.length) return;
+        index = Math.max(0, Math.min(idx, pages.length - 1));
+        const p = pages[index];
+        img.style.display = "none";
+        loading.style.display = "block";
+        img.onload = () => {
+          loading.style.display = "none";
+          img.style.display = "block";
+        };
+        img.onerror = () => {
+          loading.textContent = "Error cargando imagen";
+        };
+        img.src = p.imageUrl + "?v=" + Date.now();
+        updateNav();
+      }
+      fetch(`/api/comics/${comicId}/pages`)
+        .then((r) => r.json())
+        .then((data) => {
+          pages = data.pages || [];
+          if (!pages.length) {
+            loading.textContent = "Sin páginas aún.";
+          } else {
+            show(0);
+          }
+          updateNav();
+        });
+      prevBtn.addEventListener("click", () => show(index - 1));
+      nextBtn.addEventListener("click", () => show(index + 1));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") {
+          if (!nextBtn.disabled) show(index + 1);
+        }
+        if (e.key === "ArrowLeft") {
+          if (!prevBtn.disabled) show(index - 1);
+        }
+      });
+    </script>
+  </main>
+</html>

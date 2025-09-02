@@ -1,0 +1,49 @@
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
+  <head>
+    <title
+      th:text="${comic != null ? comic.title + ' - ComicOnline' : 'No encontrado'}"
+    ></title>
+  </head>
+  <main>
+    <div class="mb-4">
+      <a class="btn btn-outline-frost btn-sm" th:href="@{/comics}">← Volver</a>
+    </div>
+    <div th:if="${comic != null}" class="row g-5 anim-fade-up">
+      <div class="col-md-5">
+        <div
+          class="card h-100 d-flex align-items-center justify-content-center"
+        >
+          <div
+            class="ratio ratio-4x3 w-100 d-flex align-items-center justify-content-center text-dim fw-semibold"
+          >
+            Portada
+          </div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <h1 class="section-title h2 mb-3" th:text="${comic.title}"></h1>
+        <p class="text-dim mb-3" th:text="${comic.author}"></p>
+        <p class="mb-4" th:text="${comic.description}"></p>
+        <div class="d-flex gap-3" sec:authorize="isAuthenticated()">
+          <form
+            th:action="@{'/favorites/' + ${comic.id}}"
+            method="post"
+            class="d-inline"
+          >
+            <button class="btn btn-gradient px-4">Añadir a favoritos</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div
+      th:unless="${comic != null}"
+      class="alert alert-warning glass border-0"
+    >
+      Cómic no encontrado.
+    </div>
+  </main>
+</html>
