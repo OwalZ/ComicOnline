@@ -9,14 +9,15 @@
     ></title>
   </head>
   <main>
-    <div class="mb-4">
-      <a class="btn btn-outline-frost btn-sm" th:href="@{/comics}">← Volver</a>
+    <div class="mb-4 d-flex align-items-center gap-2 anim-fade-up">
+      <a class="btn btn-outline-frost btn-sm" th:href="@{/comics}"
+        >← Catálogo</a
+      >
+      <span class="small text-dim">Detalle</span>
     </div>
-    <div th:if="${comic != null}" class="row g-5 anim-fade-up">
-      <div class="col-md-5">
-        <div
-          class="card h-100 d-flex align-items-center justify-content-center"
-        >
+    <div th:if="${comic != null}" class="row g-4 g-xl-5 anim-fade-up">
+      <div class="col-md-5 col-lg-4">
+        <div class="card h-100 overflow-hidden">
           <div
             class="ratio ratio-4x3 w-100 d-flex align-items-center justify-content-center text-dim fw-semibold"
           >
@@ -24,17 +25,23 @@
           </div>
         </div>
       </div>
-      <div class="col-md-7">
-        <h1 class="section-title h2 mb-3" th:text="${comic.title}"></h1>
-        <p class="text-dim mb-3" th:text="${comic.author}"></p>
-        <p class="mb-4" th:text="${comic.description}"></p>
-        <div class="d-flex gap-3" sec:authorize="isAuthenticated()">
+      <div class="col-md-7 col-lg-8 d-flex flex-column">
+        <h1 class="h2 fw-bold mb-2" th:text="${comic.title}"></h1>
+        <div class="small text-dim mb-3" th:text="${comic.author}"></div>
+        <div class="mb-4 lh-base" th:text="${comic.description}"></div>
+        <div class="mt-auto d-flex flex-wrap gap-3">
+          <a
+            th:href="@{'/comics/' + ${comic.id} + '/read'}"
+            class="btn btn-gradient px-4"
+            >Leer ahora</a
+          >
           <form
             th:action="@{'/favorites/' + ${comic.id}}"
             method="post"
             class="d-inline"
+            sec:authorize="isAuthenticated()"
           >
-            <button class="btn btn-gradient px-4">Añadir a favoritos</button>
+            <button class="btn btn-outline-frost px-4">Favorito</button>
           </form>
         </div>
       </div>

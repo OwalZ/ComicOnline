@@ -7,28 +7,28 @@
     <title>Catálogo - ComicOnline</title>
   </head>
   <main>
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-4 anim-fade-up">
-      <h1 class="section-title h3 m-0">Catálogo de Cómics</h1>
+    <div
+      class="catalog-toolbar glass anim-fade-up mb-4 p-3 p-lg-4 rounded-4 d-flex flex-wrap align-items-center gap-3"
+    >
+      <div class="d-flex flex-column gap-1">
+        <h1 class="h4 m-0 fw-bold">Catálogo</h1>
+        <div class="small text-dim">Local + Comunidad externa</div>
+      </div>
       <span
         class="badge badge-frost"
         id="countAll"
         th:text="${#lists.size(comics)} + ' locales'"
         >0</span
       >
-      <div class="ms-auto d-flex gap-2 align-items-center">
-        <div class="form-check form-switch m-0">
+      <div class="ms-auto d-flex flex-wrap gap-2 align-items-center">
+        <div class="form-check form-switch m-0" title="Incluir resultados NSFW">
           <input class="form-check-input" type="checkbox" id="toggleNsfw" />
-          <label
-            class="form-check-label small"
-            for="toggleNsfw"
-            title="Incluir resultados NSFW"
-            >NSFW</label
-          >
+          <label class="form-check-label small" for="toggleNsfw">NSFW</label>
         </div>
         <select
           id="extLang"
           class="form-select form-select-sm"
-          style="width: auto; min-width: 120px"
+          style="width: auto; min-width: 130px"
         >
           <option value="es">Español</option>
           <option value="en">English</option>
@@ -41,15 +41,17 @@
           <option value="ko">한국어</option>
           <option value="zh">中文</option>
         </select>
-        <input
-          id="searchExt"
-          class="form-control form-control-sm"
-          style="width: 200px"
-          placeholder="Buscar comunidad (ENTER)"
-        />
-        <button id="btnSearchExt" class="btn btn-outline-frost btn-sm">
-          Buscar
-        </button>
+        <div class="d-flex gap-2">
+          <input
+            id="searchExt"
+            class="form-control form-control-sm"
+            style="width: 220px"
+            placeholder="Buscar externo (ENTER)"
+          />
+          <button id="btnSearchExt" class="btn btn-gradient btn-sm">
+            Buscar
+          </button>
+        </div>
       </div>
     </div>
     <div class="grid-auto-fill anim-fade-up" id="catalogGrid">
@@ -83,7 +85,47 @@
       </div>
     </div>
     <!-- Paginación resultados externos -->
-    <div id="extPager" class="mt-4 d-flex flex-wrap gap-2"></div>
+    <div
+      id="extPager"
+      class="mt-4 d-flex flex-wrap gap-2 justify-content-center pager-scroll"
+    ></div>
+    <!-- Modal salto de página (se activará reemplazando prompt) -->
+    <div class="modal fade" id="jumpModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass">
+          <div class="modal-header py-2">
+            <h5 class="modal-title small">Ir a página</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Cerrar"
+            ></button>
+          </div>
+          <div class="modal-body py-3">
+            <input
+              type="number"
+              min="1"
+              class="form-control form-control-sm"
+              id="jumpInput"
+              placeholder="Número de página"
+            />
+          </div>
+          <div class="modal-footer py-2">
+            <button
+              type="button"
+              class="btn btn-outline-frost btn-sm"
+              data-bs-dismiss="modal"
+            >
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-gradient btn-sm" id="jumpGo">
+              Ir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div
       id="authFlag"
       sec:authorize="isAuthenticated()"
@@ -96,7 +138,9 @@
         >
           <img
             data-img
-            style="width: 100%; height: 100%; object-fit: cover; display: none"
+            loading="lazy"
+            decoding="async"
+            style="width: 100%; height: 100%; object-fit: cover"
           />
           <span data-ph class="text-dim small">Sin portada</span>
         </div>
@@ -288,12 +332,25 @@
             return;
           }
           erBody.innerHTML = "";
-          const img = document.createElement("img");
-          img.src = pages[pageIndex];
-          img.style.maxWidth = "90%";
-          img.style.borderRadius = "12px";
-          img.style.boxShadow = "0 4px 24px -4px rgba(0,0,0,.8)";
-          erBody.appendChild(img);
+          const container = document.createElement("div");
+          container.style.width = "100%";
+          container.style.display = "flex";
+          container.style.flexDirection = "column";
+          container.style.alignItems = "center";
+          erBody.appendChild(container);
+          // Cargar página actual inmediatamente
+          const cur = createPageImg(pageIndex);
+          container.appendChild(cur);
+          // Pre-crear siguientes placeholders para lazy
+          for (let i = pageIndex + 1; i < pages.length; i++) {
+            const ph = document.createElement("div");
+            ph.className = "page-ph";
+            ph.style.minHeight = "60vh";
+            ph.style.width = "90%";
+            ph.style.margin = "2rem 0";
+            ph.dataset.index = i;
+            container.appendChild(ph);
+          }
           erPageInfo.textContent = pageIndex + 1 + " / " + pages.length;
           Array.from(erThumbs.children).forEach((th, i) => {
             th.classList.toggle("active", i === pageIndex);
@@ -301,6 +358,39 @@
           });
           updateNextLabel();
           scheduleProgress();
+          initLazy(container);
+        }
+        function createPageImg(i) {
+          const img = document.createElement("img");
+          img.src = pages[i];
+          img.style.maxWidth = "90%";
+          img.style.borderRadius = "12px";
+          img.style.boxShadow = "0 4px 24px -4px rgba(0,0,0,.8)";
+          img.loading = "lazy";
+          img.decoding = "async";
+          return img;
+        }
+        function initLazy(container) {
+          if (!("IntersectionObserver" in window)) return; // fallback
+          const io = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((ent) => {
+                if (ent.isIntersecting) {
+                  const ph = ent.target;
+                  const idx = parseInt(ph.dataset.index, 10);
+                  if (!isNaN(idx)) {
+                    const img = createPageImg(idx);
+                    ph.replaceWith(img);
+                  }
+                  io.unobserve(ph);
+                }
+              });
+            },
+            { root: erBody, rootMargin: "200px 0px", threshold: 0.01 }
+          );
+          container
+            .querySelectorAll(".page-ph")
+            .forEach((ph) => io.observe(ph));
         }
         function openReader(chapterId, label, chaptersArr, chapterIdx) {
           if (chaptersArr) currentChapters = chaptersArr;
@@ -452,14 +542,10 @@
             const img = frag.querySelector("[data-img]");
             const ph = frag.querySelector("[data-ph]");
             if (m.coverUrl) {
+              // Usar la mecánica simple del homepage: asignar src directamente
               img.src = m.coverUrl;
-              img.onload = () => {
-                img.style.display = "block";
-                ph && ph.remove();
-              };
-              img.onerror = () => {
-                img.remove();
-              };
+              img.style.display = "block";
+              ph && ph.remove();
             }
             const cardEl = frag.firstElementChild; // .card
             cardEl.dataset.mid = m.id;
@@ -497,23 +583,70 @@
           };
           // Prev
           makeBtn("«", false, currentPage === 1, () => search(currentPage - 1));
-          // Page numbers: show 1..currentPage and maybe next if hasMore
-          const start = 1;
-          for (let p = start; p <= currentPage; p++) {
-            makeBtn(p, p === currentPage, false, () => {
-              if (p !== currentPage) search(p);
-            });
+          // Build list
+          const pages = [];
+          if (currentPage <= 5) {
+            for (let p = 1; p <= currentPage; p++) pages.push(p);
+          } else if (currentPage >= 6 && currentPage <= 10) {
+            pages.push(1, "…", currentPage);
+          } else {
+            pages.push(1, 2, 3, 4, 5, "…", currentPage);
           }
-          if (hasMore) {
-            makeBtn(currentPage + 1, false, false, () =>
-              search(currentPage + 1)
-            );
-          }
+          pages.forEach((p) => {
+            if (p === "…") {
+              const jumpBtn = document.createElement("button");
+              jumpBtn.type = "button";
+              jumpBtn.className = "btn btn-sm btn-outline-frost pager-ellipsis";
+              jumpBtn.textContent = "…";
+              jumpBtn.title = "Saltar a página";
+              jumpBtn.addEventListener("click", () => {
+                const modalEl = document.getElementById("jumpModal");
+                const inputEl = document.getElementById("jumpInput");
+                const goBtn = document.getElementById("jumpGo");
+                if (!modalEl) return;
+                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                inputEl.value = "";
+                goBtn.disabled = false;
+                const submit = () => {
+                  const val = inputEl.value.trim();
+                  const num = parseInt(val, 10);
+                  if (!val || isNaN(num) || num < 1) {
+                    inputEl.classList.add("is-invalid");
+                    return;
+                  }
+                  if (num === currentPage) {
+                    bsModal.hide();
+                    return;
+                  }
+                  bsModal.hide();
+                  search(num);
+                };
+                goBtn.onclick = submit;
+                inputEl.onkeydown = (e) => {
+                  if (e.key === "Enter") {
+                    submit();
+                  }
+                };
+                modalEl.addEventListener(
+                  "shown.bs.modal",
+                  () => {
+                    inputEl.focus();
+                  },
+                  { once: true }
+                );
+                bsModal.show();
+              });
+              pagerEl.appendChild(jumpBtn);
+            } else {
+              makeBtn(p, p === currentPage, false, () => {
+                if (p !== currentPage) search(p);
+              });
+            }
+          });
           // Next
-          makeBtn("»", false, !hasMore && currentPage !== 1 && !hasMore, () => {
+          makeBtn("»", false, !hasMore, () => {
             if (hasMore) search(currentPage + 1);
           });
-          // Info small
           const info = document.createElement("span");
           info.className = "small text-dim align-self-center ms-2";
           info.textContent = `Página ${currentPage}${

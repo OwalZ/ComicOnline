@@ -6,53 +6,84 @@
     <title>Inicio - ComicOnline</title>
   </head>
   <main>
-    <section class="hero anim-fade-up mb-5">
+    <!-- HERO NUEVO -->
+    <section class="hero anim-fade-up mb-5 position-relative overflow-hidden">
       <div class="row align-items-center g-4">
-        <div class="col-lg-7">
-          <h1 class="display-5 fw-bold mb-3">
-            Tu universo de <span class="section-title">cómics y manga</span>
-            en un solo lugar
-          </h1>
-          <p class="lead text-dim mb-4">
-            Descubre nuevas historias, sigue tus series favoritas y disfruta de
-            un lector rápido e inmersivo con filtros por idioma y contenido.
-          </p>
-          <div class="d-flex flex-wrap gap-3">
-            <a class="btn btn-gradient btn-lg px-4" th:href="@{/comics}"
-              >Explorar ahora</a
-            >
-            <a class="btn btn-outline-frost btn-lg px-4" th:href="@{/register}"
-              >Crear cuenta</a
-            >
+        <div class="col-xl-6">
+          <div class="d-flex flex-column gap-3">
+            <h1 class="display-5 fw-bold m-0 lh-tight">
+              Explora, lee y guarda tus
+              <span class="section-title">cómics y manga</span>
+              favoritos
+            </h1>
+            <p class="lead text-dim m-0">
+              Una experiencia rápida tipo app: catálogo híbrido local +
+              comunidad externa, lector inmersivo y progreso en tus favoritos.
+            </p>
+            <div class="d-flex flex-wrap gap-3 pt-2">
+              <a class="btn btn-gradient btn-lg px-4" th:href="@{/comics}"
+                >Explorar catálogo</a
+              >
+              <a
+                class="btn btn-outline-frost btn-lg px-4"
+                th:href="@{/register}"
+                sec:authorize="isAnonymous()"
+                >Crear cuenta</a
+              >
+              <a
+                class="btn btn-outline-frost btn-lg px-4"
+                th:href="@{/favorites}"
+                sec:authorize="isAuthenticated()"
+                >Ir a favoritos</a
+              >
+            </div>
+            <div class="d-flex gap-3 small text-dim flex-wrap pt-1">
+              <span>⚡ Lector rápido</span><span>🗂️ Favoritos y progreso</span
+              ><span>🌐 Multilenguaje</span><span>🔍 Búsqueda extendida</span>
+            </div>
           </div>
         </div>
-        <div class="col-lg-5 d-none d-lg-block">
-          <div
-            class="glass p-4 rounded-4 h-100 d-flex flex-column justify-content-center"
-            style="min-height: 260px"
-          >
-            <h3 class="h5 text-dim mb-3">Qué puedes hacer</h3>
-            <ul class="list-unstyled small m-0 text-dim">
-              <li class="mb-2">
-                • Guardar favoritos y retomarlos cuando quieras
-              </li>
-              <li class="mb-2">• Leer capítulos con navegación fluida</li>
-              <li class="mb-2">• Elegir idioma y filtrar contenido sensible</li>
-              <li>• Explorar series destacadas de la comunidad</li>
+        <div class="col-xl-6 d-none d-xl-block">
+          <div class="glass p-4 rounded-4 h-100" style="min-height: 320px">
+            <h3 class="h6 text-dim mb-3 text-uppercase">Novedades</h3>
+            <ul class="list-unstyled m-0 small feature-list">
+              <li>• Favoritos externos con progreso de capítulo</li>
+              <li>• Lector flotante con miniaturas</li>
+              <li>• Búsqueda global instantánea (local)</li>
+              <li>• App Shell adaptativa y modo temático</li>
             </ul>
+            <div class="mt-4 small text-dim fst-italic">
+              Más características próximamente.
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <h2 class="section-title h4 mb-4 anim-fade-up">Comics Destacados</h2>
-    <div class="grid-auto-fill anim-fade-up">
-      <div th:each="c : ${comics}">
-        <div class="card h-100">
+    <!-- SECCION DESTACADOS -->
+    <section class="anim-fade-up mb-5">
+      <div class="d-flex align-items-center mb-3 gap-3 flex-wrap">
+        <h2 class="section-title h4 m-0">Destacados</h2>
+        <a
+          th:href="@{/comics}"
+          class="small text-dim ms-auto text-decoration-none"
+          >Ver todo →</a
+        >
+      </div>
+      <div class="grid-auto-fill">
+        <div
+          th:each="c : ${comics}"
+          class="card h-100 highlight-card"
+          data-local
+        >
           <div
-            class="ratio ratio-4x3 d-flex align-items-center justify-content-center text-dim fw-semibold"
+            class="ratio ratio-4x3 position-relative overflow-hidden cover-ph"
           >
-            Portada
+            <div
+              class="ph-inner d-flex align-items-center justify-content-center text-dim"
+            >
+              Portada
+            </div>
           </div>
           <div class="card-body d-flex flex-column">
             <h5 class="card-title mb-1" th:text="${c.title}"></h5>
@@ -60,22 +91,24 @@
             <a
               th:href="@{'/comics/' + ${c.id}}"
               class="mt-auto btn btn-outline-frost btn-sm stretched-link"
-              >Ver Detalle</a
+              >Detalle</a
             >
           </div>
         </div>
-      </div>
-      <div
-        th:if="${#lists.isEmpty(comics) and extFeatured != null}"
-        th:each="e : ${extFeatured}"
-      >
-        <div class="card h-100" data-ext="1">
+        <div
+          th:if="${#lists.isEmpty(comics) and extFeatured != null}"
+          th:each="e : ${extFeatured}"
+          class="card h-100"
+          data-ext
+        >
           <div
             class="ratio ratio-4x3 bg-dark-subtle d-flex align-items-center justify-content-center overflow-hidden"
           >
             <img
               th:if="${e.coverUrl}"
               th:src="${e.coverUrl}"
+              loading="lazy"
+              decoding="async"
               style="width: 100%; height: 100%; object-fit: cover"
             />
             <div th:if="${e.coverUrl == null}" class="text-dim small">
@@ -93,13 +126,49 @@
             </button>
           </div>
         </div>
+        <div
+          th:if="${#lists.isEmpty(comics) and (extFeatured == null or #lists.isEmpty(extFeatured))}"
+          class="text-dim"
+        >
+          No hay cómics disponibles.
+        </div>
       </div>
-      <div
-        th:if="${#lists.isEmpty(comics) and (extFeatured == null or #lists.isEmpty(extFeatured))}"
-        class="text-dim"
-      >
-        No hay cómics disponibles.
+    </section>
+
+    <!-- CATEGORIAS MOCK -->
+    <section class="anim-fade-up mb-5">
+      <div class="d-flex align-items-center mb-3 gap-3 flex-wrap">
+        <h2 class="section-title h5 m-0">Categorías Populares</h2>
       </div>
-    </div>
+      <div class="d-flex flex-wrap gap-2 small">
+        <span class="badge badge-frost px-3 py-2">Acción</span>
+        <span class="badge badge-frost px-3 py-2">Aventura</span>
+        <span class="badge badge-frost px-3 py-2">Fantasía</span>
+        <span class="badge badge-frost px-3 py-2">Sci-Fi</span>
+        <span class="badge badge-frost px-3 py-2">Drama</span>
+        <span class="badge badge-frost px-3 py-2">Comedia</span>
+        <span class="badge badge-frost px-3 py-2">Romance</span>
+        <span class="badge badge-frost px-3 py-2">Terror</span>
+      </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <section class="anim-fade-up" sec:authorize="isAnonymous()">
+      <div class="glass p-4 p-md-5 rounded-4 text-center">
+        <h3 class="h4 fw-bold mb-3">¿Listo para continuar leyendo?</h3>
+        <p class="text-dim mb-4 small">
+          Inicia sesión para sincronizar progreso y gestionar tus favoritos
+          externos.
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+          <a th:href="@{/login}" class="btn btn-outline-frost btn-lg px-4"
+            >Login</a
+          >
+          <a th:href="@{/register}" class="btn btn-gradient btn-lg px-4"
+            >Crear cuenta</a
+          >
+        </div>
+      </div>
+    </section>
   </main>
 </html>

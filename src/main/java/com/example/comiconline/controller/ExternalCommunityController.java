@@ -48,7 +48,7 @@ public class ExternalCommunityController {
                         }
                     } catch (Exception ignored) {}
                 }
-                String coverUrl = coverFile==null? null : "https://uploads.mangadex.org/covers/"+id+"/"+coverFile+".256.jpg";
+                String coverUrl = coverFile==null? null : "https://uploads.mangadex.org/covers/"+id+"/"+coverFile; // fix domain mangadex
                 list.add(Map.of("id", id, "title", title, "coverUrl", coverUrl, "contentRating", contentRating));
             }
         } catch (Exception e){
