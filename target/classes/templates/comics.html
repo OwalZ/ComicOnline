@@ -69,17 +69,21 @@
           </select>
         </div>
         <div class="rating-chips" id="ratingChips" aria-label="Filtro rating">
-          <button class="chip active" data-rating="safe" title="Safe">S</button>
+          <button class="chip active" data-rating="safe" title="Safe">
+            safe
+          </button>
           <button
             class="chip active"
             data-rating="suggestive"
             title="Suggestive"
           >
-            SG
+            suggestion
           </button>
-          <button class="chip" data-rating="erotica" title="Erotica">E</button>
+          <button class="chip" data-rating="erotica" title="Erotica">
+            erotic
+          </button>
           <button class="chip" data-rating="pornographic" title="Pornographic">
-            P
+            pornographic
           </button>
         </div>
         <div
@@ -535,19 +539,12 @@
             )
               .then((r) => r.json())
               .then((ch) => {
-                const list = ch.chapters || [];
-                extra.textContent = list.length + " capítulos";
-                pagesBox.classList.remove("d-none");
-                pagesBox.innerHTML = "";
-                currentChapters = list; // guardar lista completa
-                list.slice(0, 12).forEach((c, idx) => {
-                  const b = document.createElement("button");
-                  b.className = "btn btn-outline-frost btn-sm m-1";
-                  b.textContent = "Cap " + (c.chapter || "?");
-                  b.addEventListener("click", () =>
-                    openReader(c.id, c.chapter || "?", list, idx)
-                  );
-                  pagesBox.appendChild(b);
+                renderChaptersBox({
+                  card: n,
+                  response: ch,
+                  requestedLang: lang,
+                  pagesBox,
+                  extra,
                 });
               });
           });
@@ -570,6 +567,88 @@
               n.scrollIntoView({ behavior: "smooth", block: "center" });
             }, 50);
           });
+        }
+        function renderChaptersBox({card,response,requestedLang,pagesBox,extra,showMulti=false}) {
+          const list = response.chapters || [];
+          const langUsed = response.mixed ? 'mix' : (response.langUsed || requestedLang);
+          pagesBox.classList.remove('d-none');
+          pagesBox.innerHTML='';
+          currentChapters = list;
+          extra.textContent = `${list.length} capítulos (${langUsed})`;
+          // Show chapters (only default language or mixed result)
+          list.slice(0,60).forEach((c,idx)=>{
+            const b=document.createElement('button');
+            b.className='btn btn-outline-frost btn-sm m-1';
+            b.textContent=`Cap ${c.chapter||'?'}${response.mixed? ' ['+c.lang.toUpperCase()+']':''}`;
+            b.addEventListener('click',()=>openReader(c.id,c.chapter||'?',list,idx));
+            pagesBox.appendChild(b);
+          });
+          if(!list.length){
+            const msg=document.createElement('div');
+            msg.className='text-dim small';
+            msg.textContent='Sin capítulos en este idioma.';
+            pagesBox.appendChild(msg);
+          }
+          // Determine incomplete translation (only if not mixed and default view)
+          const incomplete = !response.mixed && (list.length===0 || list.length<5 || (()=>{const nums=list.map(c=>parseFloat(c.chapter)).filter(n=>!isNaN(n)).sort((a,b)=>a-b); if(!nums.length) return true; if(nums[0]>1) return true; for(let i=1;i<Math.min(nums.length,25);i++){ if(nums[i]-nums[i-1]>1.01) return true;} return false;})());
+          if(!showMulti && incomplete){
+            const warn=document.createElement('div');
+            warn.className='alert alert-warning py-2 px-3 small mt-2';
+            warn.style.fontSize='.7rem';
+            warn.textContent='Traduccion Incompleta: Ver O Buscar Multiples lenguajes';
+            const btnVer=document.createElement('button');
+            btnVer.type='button'; btnVer.className='btn btn-gradient btn-xs ms-2'; btnVer.style.fontSize='.65rem'; btnVer.textContent='Ver';
+            btnVer.addEventListener('click',()=>mixMore(card,pagesBox,extra,false,true));
+            const btnMulti=document.createElement('button');
+            btnMulti.type='button'; btnMulti.className='btn btn-only btn-xs ms-2'; btnMulti.style.fontSize='.65rem'; btnMulti.textContent='Only';
+            btnMulti.addEventListener('click',()=>renderChaptersBox({card,response,requestedLang,pagesBox,extra,showMulti:true}));
+            warn.appendChild(btnVer); warn.appendChild(btnMulti); pagesBox.appendChild(warn);
+            return;
+          }
+          if(showMulti){
+            if(!window.multiLangSelection) window.multiLangSelection=new Set();
+            const langsPresent=Array.from(new Set(list.map(c=>c.lang))).filter(Boolean);
+            if(!window.multiLangSelection.size && langsPresent.length) window.multiLangSelection=new Set(langsPresent);
+            const bar=document.createElement('div');
+            bar.className='d-flex flex-wrap gap-1 mt-2 align-items-center';
+            const makeChip=(code)=>{const active=window.multiLangSelection.has(code); const b=document.createElement('button'); b.type='button'; b.className=`btn btn-xs ${active?'btn-gradient':'btn-outline-frost'}`; b.style.fontSize='.65rem'; b.textContent=code.toUpperCase(); b.addEventListener('click',()=>{ if(active) window.multiLangSelection.delete(code); else window.multiLangSelection.add(code); renderChaptersBox({card,response,requestedLang,pagesBox,extra,showMulti:true}); }); return b;};
+            langsPresent.forEach(l=>bar.appendChild(makeChip(l)));
+            const othersBtn=document.createElement('button'); othersBtn.type='button'; othersBtn.className='btn btn-outline-frost btn-xs'; othersBtn.style.fontSize='.65rem'; othersBtn.textContent='OTROS'; othersBtn.addEventListener('click',()=>mixMore(card,pagesBox,extra,true,true)); bar.appendChild(othersBtn);
+            const apply=document.createElement('button'); apply.type='button'; apply.className='btn btn-gradient btn-xs'; apply.style.fontSize='.65rem'; apply.textContent='Aplicar'; apply.disabled=window.multiLangSelection.size<=1; apply.addEventListener('click',()=>{const langs=Array.from(window.multiLangSelection); if(langs.length>1) loadChaptersMulti(card, requestedLang, langs, pagesBox, extra, true);}); bar.appendChild(apply);
+            pagesBox.appendChild(bar);
+          }
+        }
+        function loadChaptersMulti(card, baseLang, langs, pagesBox, extra, forceShowMulti){
+          const param = langs.join(',');
+          extra.textContent = 'Cargando multi ('+param+')...';
+          fetch(`/api/ext/manga/${card.dataset.mid}/chapters?lang=${encodeURIComponent(baseLang)}&langs=${encodeURIComponent(param)}`)
+            .then(r=>r.json())
+            .then(ch=>renderChaptersBox({card,response:ch,requestedLang:baseLang,pagesBox,extra,showMulti:forceShowMulti}));
+        }
+        function reloadSingleLang(code, card, pagesBox, extra) {
+          extra.textContent = "Cargando (" + code + " )...";
+          fetch(
+            `/api/ext/manga/${
+              card.dataset.mid
+            }/chapters?lang=${encodeURIComponent(code)}`
+          )
+            .then((r) => r.json())
+            .then((ch) =>
+              renderChaptersBox({
+                card,
+                response: ch,
+                requestedLang: code,
+                pagesBox,
+                extra,
+              })
+            );
+        }
+        function mixMore(card, pagesBox, extra, silent, forceShowMulti){
+          const langsList='es,en,pt-br';
+          if(!silent) extra.textContent='Cargando otros idiomas...';
+          fetch(`/api/ext/manga/${card.dataset.mid}/chapters?lang=${encodeURIComponent(langSelect.value)}&langs=${encodeURIComponent(langsList)}`)
+            .then(r=>r.json())
+            .then(ch=>renderChaptersBox({card,response:ch,requestedLang:langSelect.value,pagesBox,extra,showMulti:forceShowMulti}));
         }
         function addExternal(results) {
           const existing = new Set(
@@ -718,6 +797,7 @@
           pagerEl.appendChild(info);
         }
         function search(page = 1) {
+          const activeRatings = getActiveRatings();
           const q = input.value.trim();
           const nsfw = document.getElementById("toggleNsfw").checked;
           const lang = langSelect.value;
@@ -734,12 +814,13 @@
           localStorage.setItem("extLang", lang);
           clearExternal();
           pagerEl.innerHTML = '<span class="text-dim small">Cargando...</span>';
+          const ratingsParam = activeRatings.join(",");
           fetch(
             `/api/ext/search?q=${encodeURIComponent(
               q
             )}&nsfw=${nsfw}&lang=${encodeURIComponent(
               lang
-            )}&page=${currentPage}`
+            )}&page=${currentPage}&ratings=${encodeURIComponent(ratingsParam)}`
           )
             .then((r) => r.json())
             .then((data) => {
@@ -751,6 +832,16 @@
               pagerEl.innerHTML =
                 '<span class="text-danger small">Error</span>';
             });
+        }
+        function getActiveRatings() {
+          const act = Array.from(
+            document
+              .getElementById("ratingChips")
+              .querySelectorAll(".chip.active")
+          ).map((c) => c.dataset.rating);
+          return act.length
+            ? act
+            : ["safe", "suggestive", "erotica", "pornographic"]; // fallback: todas si el usuario apaga todas
         }
         // Restaurar idioma guardado
         (function () {
@@ -802,4 +893,26 @@
       })();
     </script>
   </main>
+  <style>
+    .btn-only{
+      --c1: #6a5cff;
+      --c2: #a66bff;
+      background: linear-gradient(135deg,var(--c1),var(--c2));
+      color:#fff!important;
+      border:none;
+      box-shadow:0 0 0 1px rgba(255,255,255,0.08),0 4px 10px -2px rgba(0,0,0,.5);
+      letter-spacing:.5px;
+      text-transform:uppercase;
+      font-weight:600;
+      padding:4px 10px;
+      border-radius:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    .btn-only:before{
+      content:"";position:absolute;inset:0;opacity:0;transition:.3s;backdrop-filter:blur(2px);background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(255,255,255,0));
+    }
+    .btn-only:hover:before{opacity:1;}
+    .btn-only:active{transform:translateY(1px);}
+  </style>
 </html>

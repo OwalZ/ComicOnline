@@ -24,6 +24,7 @@ com\example\comiconline\model\Comic.class
 com\example\comiconline\repository\UserRepository.class
 com\example\comiconline\controller\ComicRestController.class
 com\example\comiconline\controller\ExternalCommunityController.class
+com\example\comiconline\controller\ExternalCommunityController$1.class
 com\example\comiconline\service\FavoriteService.class
 com\example\comiconline\config\SecurityConfig.class
 com\example\comiconline\controller\FavoriteController.class

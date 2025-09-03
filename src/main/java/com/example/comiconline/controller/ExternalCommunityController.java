@@ -20,13 +20,26 @@ public class ExternalCommunityController {
                                     @RequestParam(defaultValue = "es") String lang,
                                     @RequestParam(defaultValue="12") int limit,
                                     @RequestParam(defaultValue="1") int page,
-                                    @RequestParam(name="nsfw", defaultValue = "false") boolean nsfw) throws Exception {
+                                    @RequestParam(name="nsfw", defaultValue = "false") boolean nsfw,
+                                    @RequestParam(name="ratings", required = false) String ratingsCsv) throws Exception {
         String query = q.isBlank()? "a" : q; // fallback simple
         List<Map<String,Object>> list = new ArrayList<>();
         int p = Math.max(page,1);
         int offset = (p-1)*limit;
         try {
-            java.util.List<String> ratings = nsfw ? java.util.List.of("safe","suggestive","erotica","pornographic") : java.util.List.of("safe","suggestive");
+            List<String> allowed = List.of("safe","suggestive","erotica","pornographic");
+            List<String> ratings;
+            if(ratingsCsv != null && !ratingsCsv.isBlank()){
+                ratings = new ArrayList<>();
+                for(String r: ratingsCsv.split(",")){
+                    String v = r.trim().toLowerCase();
+                    if(allowed.contains(v) && !ratings.contains(v)) ratings.add(v);
+                }
+                // fallback si quedó vacío
+                if(ratings.isEmpty()) ratings = nsfw ? List.of("safe","suggestive","erotica","pornographic") : List.of("safe","suggestive");
+            } else {
+                ratings = nsfw ? List.of("safe","suggestive","erotica","pornographic") : List.of("safe","suggestive");
+            }
             String json = client.search(query, lang, limit, offset, ratings);
             JsonNode root = mapper.readTree(json);
             for(JsonNode item: root.path("data")){
@@ -60,27 +73,83 @@ public class ExternalCommunityController {
     }
 
     @GetMapping("/manga/{mangaId}/chapters")
-    public ResponseEntity<?> chapters(@PathVariable String mangaId, @RequestParam(defaultValue="es") String lang, @RequestParam(defaultValue="100") int limit) throws Exception {
-        String json = client.chapters(mangaId, lang, limit);
-        JsonNode root = mapper.readTree(json);
-        // Si error 400 o sin data y lang != en, intentar fallback a en
-        if((!root.has("data") || root.path("data").isEmpty()) && !"en".equals(lang)){
-            String jsonEn = client.chapters(mangaId, "en", limit);
-            JsonNode rootEn = mapper.readTree(jsonEn);
-            if(rootEn.has("data") && !rootEn.path("data").isEmpty()){
-                root = rootEn; // usar fallback
+    public ResponseEntity<?> chapters(@PathVariable String mangaId,
+                                      @RequestParam(defaultValue="es") String lang,
+                                      @RequestParam(defaultValue="100") int limit,
+                                      @RequestParam(name="langs", required = false) String langsCsv) throws Exception {
+        List<String> allowed = List.of("en","es","pt-br","fr","it","de","ru","ja","ko","zh");
+        List<Map<String,Object>> chapters = new ArrayList<>();
+        boolean mixed = false;
+        String usedLang = lang;
+
+        if(langsCsv != null && !langsCsv.isBlank()) {
+            // Modo multi-idioma explícito
+            mixed = true;
+            LinkedHashSet<String> langs = new LinkedHashSet<>();
+            for(String piece : langsCsv.split(",")) {
+                String v = piece.trim().toLowerCase();
+                if(allowed.contains(v)) langs.add(v);
+            }
+            if(langs.isEmpty()) langs.add(lang);
+            for(String l : langs) {
+                String json = client.chapters(mangaId, l, limit);
+                JsonNode root = mapper.readTree(json);
+                for(JsonNode ch : root.path("data")){
+                    JsonNode attrs = ch.path("attributes");
+                    chapters.add(Map.of(
+                            "id", ch.path("id").asText(),
+                            "chapter", attrs.path("chapter").asText("?"),
+                            "title", attrs.path("title").asText(""),
+                            "lang", l
+                    ));
+                }
+            }
+        } else {
+            // Lógica original: intentar idioma y fallbacks SOLO si vacío
+            List<String> fallbacks = List.of("en","es","pt-br","ja");
+            JsonNode root = null;
+            Set<String> tried = new LinkedHashSet<>();
+            for(String attempt : new LinkedHashSet<String>() {{ add(lang); fallbacks.forEach(this::add); }}) {
+                if(tried.contains(attempt)) continue;
+                tried.add(attempt);
+                String json = client.chapters(mangaId, attempt, limit);
+                JsonNode candidate = mapper.readTree(json);
+                if(candidate.has("data") && !candidate.path("data").isEmpty()) {
+                    root = candidate;
+                    usedLang = attempt;
+                    break;
+                }
+                if(root == null) root = candidate; // guardar último vacío
+            }
+            if(root == null) root = mapper.readTree("{\"data\":[]}");
+            for(JsonNode ch : root.path("data")){
+                JsonNode attrs = ch.path("attributes");
+                chapters.add(Map.of(
+                        "id", ch.path("id").asText(),
+                        "chapter", attrs.path("chapter").asText("?"),
+                        "title", attrs.path("title").asText(""),
+                        "lang", usedLang
+                ));
             }
         }
-        List<Map<String,Object>> chapters = new ArrayList<>();
-        for(JsonNode ch : root.path("data")){
-            JsonNode attrs = ch.path("attributes");
-            chapters.add(Map.of(
-                    "id", ch.path("id").asText(),
-                    "chapter", attrs.path("chapter").asText("?"),
-                    "title", attrs.path("title").asText("")
-            ));
-        }
-        return ResponseEntity.ok(Map.of("chapters", chapters));
+        // Ordenar por número de capítulo asc (cuando sea numérico) manteniendo otros al final
+        chapters.sort((a,b)->{
+            String ca = Objects.toString(a.get("chapter"), "");
+            String cb = Objects.toString(b.get("chapter"), "");
+            double da, db;
+            try { da = Double.parseDouble(ca); } catch (Exception e){ da = Double.NaN; }
+            try { db = Double.parseDouble(cb); } catch (Exception e){ db = Double.NaN; }
+            if(!Double.isNaN(da) && !Double.isNaN(db)) return Double.compare(da, db);
+            if(!Double.isNaN(da)) return -1;
+            if(!Double.isNaN(db)) return 1;
+            return ca.compareTo(cb);
+        });
+        return ResponseEntity.ok(Map.of(
+                "chapters", chapters,
+                "langUsed", usedLang,
+                "mixed", mixed,
+                "count", chapters.size()
+        ));
     }
 
     @GetMapping("/chapter/{chapterId}/pages")

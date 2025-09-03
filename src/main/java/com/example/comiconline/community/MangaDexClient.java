@@ -75,7 +75,9 @@ public class MangaDexClient {
                 StringBuilder sb = new StringBuilder(BASE)
                         .append("/chapter?manga=").append(mangaId)
                         .append("&limit=").append(limit)
-                        .append("&order[chapter]=asc");
+                        .append("&order[chapter]=asc")
+                        // Incluir todos los contentRating para permitir capítulos de material NSFW (por defecto la API excluye pornographic)
+                        .append("&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic");
                 if(lang != null && !lang.isBlank()){
                         sb.append("&translatedLanguage[]=").append(lang);
                 }
@@ -85,6 +87,7 @@ public class MangaDexClient {
         }
 
         public String atHome(String chapterId){
+                // At-home no requiere contentRating (ya se validó al listar capítulos)
                 return get(BASE+"/at-home/server/"+chapterId);
         }
 }
